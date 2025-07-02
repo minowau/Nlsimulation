@@ -4,22 +4,7 @@ import toast from 'react-hot-toast';
 import { Resource, LearnerProgress, Position, SuggestedPath, GridSize } from '../types';
 
 // Use the same protocol as the current page to avoid mixed content issues
-const getApiBaseUrl = () => {
-  const protocol = window.location.protocol;
-  const isHttps = protocol === 'https:';
-  
-  // If we're on HTTPS, we need to use HTTPS for the API as well
-  // For development, we'll use the same protocol as the frontend
-  if (isHttps) {
-    // In production, you'd want to use your HTTPS API endpoint
-    // For now, we'll warn the user about the mixed content issue
-    console.warn('HTTPS detected - API calls may fail due to mixed content policy. Please access the app via HTTP (http://localhost:5173) for development.');
-  }
-  
-  return `${protocol}//localhost:3001/api`;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = 'http://localhost:3001/api';
 
 export const useApi = () => {
   const [loading, setLoading] = useState(false);
@@ -39,17 +24,7 @@ export const useApi = () => {
     } catch (error) {
       console.error('API Error:', error);
       
-      // Provide more specific error messaging for mixed content issues
-      if (axios.isAxiosError(error) && error.message === 'Network Error') {
-        const isHttps = window.location.protocol === 'https:';
-        if (isHttps) {
-          toast.error('Mixed content error: Please access the app via HTTP (http://localhost:5173) instead of HTTPS');
-        } else {
-          toast.error('Network error: Please ensure the backend server is running on http://localhost:3001');
-        }
-      } else {
-        toast.error(errorMessage || 'An error occurred');
-      }
+      toast.error(errorMessage || 'An error occurred');
       throw error;
     } finally {
       setLoading(false);
