@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, FileText, HelpCircle } from 'lucide-react';
+import { BookOpen, FileText, HelpCircle, Lock, CheckCircle2 } from 'lucide-react';
 import { Resource, GridSize, SuggestedPath } from '../types';
 
 interface LearningGridProps {
@@ -16,7 +16,7 @@ const LearningGrid: React.FC<LearningGridProps> = ({
   onResourceClick,
   suggestedPath
 }) => {
-  const cellSize = 40;
+  const cellSize = 50;
   const gap = 2;
 
   // Create a map of positions to resources for quick lookup
@@ -36,7 +36,10 @@ const LearningGrid: React.FC<LearningGridProps> = ({
     );
   }, [suggestedPath]);
 
-  const getResourceIcon = (type: string) => {
+  const getResourceIcon = (type: string, completed: boolean, available: boolean) => {
+    if (completed) return CheckCircle2;
+    if (!available) return Lock;
+    
     switch (type) {
       case 'quiz':
         return HelpCircle;
@@ -49,23 +52,37 @@ const LearningGrid: React.FC<LearningGridProps> = ({
 
   const getResourceColor = (resource: Resource, isOnPath: boolean) => {
     if (resource.completed) {
-      return 'bg-green-500 text-white shadow-lg';
+      return 'bg-green-500 text-white shadow-lg border-green-600';
+    }
+    if (!resource.available) {
+      return 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400';
     }
     if (isOnPath) {
-      return 'bg-purple-500 text-white shadow-lg animate-pulse';
+      return 'bg-purple-500 text-white shadow-lg animate-pulse border-purple-600';
     }
     switch (resource.type) {
       case 'quiz':
-        return 'bg-orange-500 text-white hover:bg-orange-600';
+        return 'bg-orange-500 text-white hover:bg-orange-600 border-orange-600';
       case 'tutorial':
-        return 'bg-blue-500 text-white hover:bg-blue-600';
+        return 'bg-blue-500 text-white hover:bg-blue-600 border-blue-600';
       default:
-        return 'bg-indigo-500 text-white hover:bg-indigo-600';
+        return 'bg-indigo-500 text-white hover:bg-indigo-600 border-indigo-600';
     }
   };
 
+  const getTooltipText = (resource: Resource) => {
+    if (resource.completed) {
+      return `✅ ${resource.name} (Completed)`;
+    }
+    if (!resource.available) {
+      const prereqs = resource.prerequisites?.join(', ') || 'Unknown prerequisites';
+      return `🔒 ${resource.name}\nPrerequisites: ${prereqs}`;
+    }
+    return `📚 ${resource.name}\nClick to start learning`;
+  };
+
   return (
-    <div className="relative overflow-auto max-h-[600px] bg-gray-50 rounded-xl p-4">
+    <div className="relative overflow-auto max-h-[700px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
       <div 
         className="relative"
         style={{
@@ -83,30 +100,54 @@ const LearningGrid: React.FC<LearningGridProps> = ({
             return (
               <div
                 key={key}
-                className={`absolute border border-gray-200 ${
-                  resource ? 'cursor-pointer' : 'bg-white'
-                } ${isOnPath && !resource ? 'bg-purple-100 border-purple-300' : ''}`}
+                className={`absolute border transition-all duration-200 ${
+                  resource ? 'cursor-pointer' : 'bg-white border-gray-200'
+                } ${isOnPath && !resource ? 'bg-purple-100 border-purple-300 animate-pulse' : ''}`}
                 style={{
                   left: x * (cellSize + gap),
                   top: (gridSize.y - 1 - y) * (cellSize + gap),
                   width: cellSize,
                   height: cellSize
                 }}
-                onClick={() => resource && onResourceClick(resource)}
+                onClick={() => resource && resource.available && !resource.completed && onResourceClick(resource)}
+                title={resource ? getTooltipText(resource) : ''}
               >
                 {resource && (
                   <motion.div
-                    className={`w-full h-full rounded-lg flex items-center justify-center transition-all duration-200 ${getResourceColor(resource, isOnPath)}`}
-                    whileHover={{ scale: 1.1, zIndex: 10 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: (x + y) * 0.01 }}
-                    title={resource.name}
+                    className={`w-full h-full rounded-lg flex items-center justify-center transition-all duration-200 border-2 ${getResourceColor(resource, isOnPath)}`}
+                    whileHover={resource.available && !resource.completed ? { scale: 1.1, zIndex: 10 } : {}}
+                    whileTap={resource.available && !resource.completed ? { scale: 0.95 } : {}}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: (x + y) * 0.01, type: "spring", stiffness: 300 }}
                   >
-                    {React.createElement(getResourceIcon(resource.type), {
-                      className: "w-5 h-5"
+                    {React.createElement(getResourceIcon(resource.type, resource.completed, resource.available), {
+                      className: "w-6 h-6"
                     })}
+                    
+                    {/* Progress indicator for completed resources */}
+                    {resource.completed && (
+                      <motion.div
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-green-600 rounded-full flex items-center justify-center"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 500 }}
+                      >
+                        <span className="text-white text-xs">✓</span>
+                      </motion.div>
+                    )}
+                    
+                    {/* Lock indicator for unavailable resources */}
+                    {!resource.available && !resource.completed && (
+                      <motion.div
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-gray-500 rounded-full flex items-center justify-center"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 500 }}
+                      >
+                        <span className="text-white text-xs">🔒</span>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </div>
@@ -114,7 +155,7 @@ const LearningGrid: React.FC<LearningGridProps> = ({
           })
         )}
 
-        {/* Path arrows */}
+        {/* Enhanced path visualization with arrows */}
         {suggestedPath && suggestedPath.suggestedPath.length > 1 && (
           <svg
             className="absolute inset-0 pointer-events-none"
@@ -123,6 +164,22 @@ const LearningGrid: React.FC<LearningGridProps> = ({
               height: gridSize.y * (cellSize + gap)
             }}
           >
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="#8b5cf6"
+                />
+              </marker>
+            </defs>
+            
             {suggestedPath.suggestedPath.slice(0, -1).map((step, index) => {
               const nextStep = suggestedPath.suggestedPath[index + 1];
               const startX = step.x * (cellSize + gap) + cellSize / 2;
@@ -139,16 +196,59 @@ const LearningGrid: React.FC<LearningGridProps> = ({
                   y2={endY}
                   stroke="#8b5cf6"
                   strokeWidth="3"
-                  strokeDasharray="5,5"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
+                  strokeDasharray="8,4"
+                  markerEnd="url(#arrowhead)"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.8 }}
+                  transition={{ delay: index * 0.2, duration: 0.8, ease: "easeInOut" }}
                 />
               );
             })}
           </svg>
         )}
+
+        {/* Path confidence indicator */}
+        {suggestedPath && (
+          <motion.div
+            className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-3 border border-purple-200"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">
+                AI Confidence: {Math.round(suggestedPath.confidence * 100)}%
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
+
+      {/* Legend */}
+      <motion.div
+        className="mt-6 flex flex-wrap items-center justify-center gap-4 p-4 bg-white rounded-lg border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-green-500 rounded border-2 border-green-600"></div>
+          <span className="text-sm text-gray-600">Completed</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-indigo-500 rounded border-2 border-indigo-600"></div>
+          <span className="text-sm text-gray-600">Available</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-gray-300 rounded border-2 border-gray-400"></div>
+          <span className="text-sm text-gray-600">Locked</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-purple-500 rounded border-2 border-purple-600 animate-pulse"></div>
+          <span className="text-sm text-gray-600">Suggested Path</span>
+        </div>
+      </motion.div>
     </div>
   );
 };
