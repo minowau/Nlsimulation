@@ -54,8 +54,9 @@ app.get('/', (req, res) => {
 // Enhanced DQN model simulation with prerequisite awareness
 class EnhancedDQNModel {
   constructor() {
-    this.gridSizeX = 10;
-    this.gridSizeY = 10;
+    // Calculate optimal grid size based on resource distribution
+    this.gridSizeX = 20; // Increased to accommodate all resources
+    this.gridSizeY = 20; // Increased to accommodate all resources
     this.prerequisites = this._loadPrerequisites();
     this.learningPaths = this._loadLearningPaths();
   }
@@ -212,14 +213,18 @@ class EnhancedDQNModel {
   }
 
   getResourcePositions() {
-    const SCALE = 100;
     const resources = [];
     
     for (const [name, data] of Object.entries(extractedData)) {
-      // Convert coordinates to grid positions (now in top-right)
+      // Convert normalized coordinates (0.0-1.0) to grid positions
       const x = Math.floor(parseFloat(data.x_coordinate) * this.gridSizeX);
       const y = Math.floor(parseFloat(data.y_coordinate) * this.gridSizeY);
-      resources.push({ name, x, y });
+      
+      // Ensure coordinates are within bounds
+      const boundedX = Math.max(0, Math.min(x, this.gridSizeX - 1));
+      const boundedY = Math.max(0, Math.min(y, this.gridSizeY - 1));
+      
+      resources.push({ name, x: boundedX, y: boundedY });
     }
 
     return resources;
@@ -261,6 +266,8 @@ app.get('/api/resources', (req, res) => {
       prerequisites: dqnModel.prerequisites[resource.name] || [],
       available: dqnModel.checkPrerequisites(resource.name, learnerProgress.completedResources)
     }));
+
+    console.log(`📊 Loaded ${resources.length} resources on ${dqnModel.gridSizeX}x${dqnModel.gridSizeY} grid`);
 
     res.json({
       resources,
@@ -494,7 +501,9 @@ app.get('/health', (req, res) => {
       dqnModel: 'active',
       prerequisites: 'loaded',
       database: 'in-memory'
-    }
+    },
+    resourceCount: Object.keys(extractedData).length,
+    gridSize: `${dqnModel.gridSizeX}x${dqnModel.gridSizeY}`
   });
 });
 
@@ -522,6 +531,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Enhanced Backend server running on http://localhost:${PORT}`);
   console.log(`🧠 DQN Model Integration: Active`);
   console.log(`📚 Loaded ${Object.keys(extractedData).length} learning resources`);
+  console.log(`🗺️  Grid Size: ${dqnModel.gridSizeX}x${dqnModel.gridSizeY}`);
   console.log(`🔗 Prerequisites system: Enabled`);
   console.log(`📊 Adaptive path planning: Ready`);
   console.log(`🎯 Available learning goals: ${Object.keys(dqnModel.learningPaths).join(', ')}`);
